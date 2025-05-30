@@ -29,7 +29,6 @@ void iot_received(String topic, String msg) {
 
 void iot_connected() {
   Serial.println("MQTT connected callback");
-  // iot.subscribe(MODULE_TOPIC "/set");
 }
 
 void setup() {
@@ -48,7 +47,7 @@ void setup() {
   iot.setup();
 
   dht.begin();
-  timeTicker.attach(1.0, sendData);  // every 1 s
+  timeTicker.attach(1.0, sendData);  // set sendDataflag to true every 1 s
 }
 
 void loop() {
@@ -63,7 +62,7 @@ void loop() {
     Serial.printf("Temperature: %.2f C,   Humidity: %.2f %%\n", t, h);
 
     char buf[16];
-    //
+    //float to string and publish data
     dtostrf(t, 5, 2, buf);
     iot.publishMsg("temp", buf);
 
