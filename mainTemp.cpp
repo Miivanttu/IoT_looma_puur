@@ -56,7 +56,7 @@ void loop() {
   if (sendDataFlag) {
     sendDataFlag = false;
 
-    //Read hum and temp
+    //read hum and temp
     float h = dht.readHumidity();
     float t = dht.readTemperature();
     Serial.printf("Temperature: %.2f C,   Humidity: %.2f %%\n", t, h);
