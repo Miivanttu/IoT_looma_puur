@@ -16,7 +16,7 @@
 
 #define BUTTON_PIN    D3
 
-Switch button(BUTTON_PIN); // Create button object
+Switch button(BUTTON_PIN); //create button object
 
 unsigned long lastStatusTime = 0;
 
@@ -29,7 +29,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Booting and connecting to WiFi/MQTT...");
 
-  // Initialize button pin mode
+  //initialize button pin mode
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   iot.setConfig("wname", WIFI_NAME);
@@ -44,12 +44,12 @@ void setup() {
 }
 
 void loop() {
-  iot.handle();  // Maintain connection
+  iot.handle();
   
-  // Poll the button state
+  //poll the button state
   button.poll();
 
-  // If the button is pressed, send "1" to MQTT
+  //if the button is pressed, send 1 to MQTT
   if (button.pushed()) {
     char msg[2];
     snprintf(msg, sizeof(msg), "1");
@@ -57,7 +57,7 @@ void loop() {
     Serial.println("Button pressed, sent message: 1");
   }
 
-  // Button is released, send 0 to MQTT
+  //if the button is released, send 0 to MQTT
   if (button.released()) {
     char msg[2];
     snprintf(msg, sizeof(msg), "0");
@@ -65,11 +65,11 @@ void loop() {
     Serial.println("Button released, sent message: 0");
   }
 
-  // Message for debugging
+  //message for debugging
   if (millis() - lastStatusTime >= 5000) {
     Serial.println("Status: Module is running...");
     lastStatusTime = millis();
   }
 
-  delay(10); //Debounce
+  delay(10); //debounce
 }
