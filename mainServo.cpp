@@ -2,26 +2,26 @@
 #include <Servo.h>
 #include <ittiot.h>
 
-// Configuration
+//configuration
 #define BUTTON_TOPIC "ESP33/ESP99/servo"
 #define NODERED_TOPIC "ESP33/ESP99/servored"
 #define RELAY_TOPIC "ESP33/ESP99/relay"
 #define FOOD_TOPIC "ESP99/foodlevel"
 #define WATER_TOPIC "ESP99/waterlevel"
-#define WIFI_NAME "CGA2121_JbwV6cB"
-#define WIFI_PASSWORD "jwebKECerhStS37Kha"
+#define WIFI_NAME ""
+#define WIFI_PASSWORD ""
 #define MQTT_SERVER "193.40.245.72"
 #define MQTT_PORT "1883"
 #define MQTT_USER "M2"
 #define MQTT_PASS "test"
 
-// Hardware
+//hardware
 #define SERVO_PIN D3
 #define RELAY_PIN D1
 
 Servo myservo;
 
-// State variables
+//state variables
 unsigned long lastServoCycle = 0;
 unsigned long lastRelayCycle = 0;
 bool isServoOpen = false;
@@ -34,12 +34,13 @@ unsigned long relayResetTime = 0;
 int foodLevel = 100;
 int waterLevel = 100;
 const int DISPENSE_AMOUNT = 10;
-const unsigned long SERVO_INTERVAL = 5000;    // 5 seconds between cycles
-const unsigned long SERVO_OPEN_DURATION = 1000; // 1 second open time
+const unsigned long SERVO_INTERVAL = 5000;    //5 s between cycles
+const unsigned long SERVO_OPEN_DURATION = 1000; //1 s open time
 const unsigned long RELAY_INTERVAL = 10000;
 const unsigned long RELAY_DURATION = 2000;
 const unsigned long RELAY_RESET_DELAY = 1000;
 
+//function for publishing food and water levels
 void publishLevel(const char* topic, int level) {
   char buf[8];
   snprintf(buf, sizeof(buf), "%d", level);
@@ -47,6 +48,7 @@ void publishLevel(const char* topic, int level) {
   Serial.printf("Published %s level: %d%%\n", topic, level);
 }
 
+//function for changing food level
 void dispenseFood() {
   if (foodLevel >= DISPENSE_AMOUNT) {
     foodLevel -= DISPENSE_AMOUNT;
@@ -58,6 +60,7 @@ void dispenseFood() {
   }
 }
 
+//function for changing water level
 void dispenseWater() {
   if (waterLevel >= DISPENSE_AMOUNT) {
     waterLevel -= DISPENSE_AMOUNT;
@@ -69,6 +72,7 @@ void dispenseWater() {
   }
 }
 
+//function for reseting food and waater levels
 void resetLevel(const char* topic) {
   if (strcmp(topic, FOOD_TOPIC) == 0) {
     foodLevel = 100;
@@ -81,6 +85,7 @@ void resetLevel(const char* topic) {
   }
 }
 
+//function for opening and closing servo
 void controlServo(bool open) {
   if (open) {
     myservo.write(180);
@@ -94,6 +99,7 @@ void controlServo(bool open) {
   }
 }
 
+//function for turning relay on and off
 void controlRelay(bool on) {
   if (on) {
     digitalWrite(RELAY_PIN, LOW);
@@ -111,19 +117,18 @@ void iot_received(String topic, String msg) {
   Serial.printf("Received: %s - %s\n", topic.c_str(), msg.c_str());
   
   if (topic == BUTTON_TOPIC) {
-    if (msg == "1") {
+    if (msg == "1") {          //close servo when button is pressed
       buttonActive = true;
-      // Immediately stop servo when button is pressed
       controlServo(false);
       Serial.println("Button pressed - servo stopped");
-    } else if (msg == "0") {
+    } else if (msg == "0") {   //keep opening and closing servo until button is pressed 
       buttonActive = false;
-      // When button is released, let the automatic cycle resume
       Serial.println("Button released - servo cycle will resume");
     }
   } 
+    
   else if (topic == NODERED_TOPIC) {
-    if (msg == "1" && !isServoOpen && !buttonActive) {
+    if (msg == "1" && !isServoOpen && !buttonActive) { //open and close servo when user sends signal through Node-RED
       nodeRedActive = true;
       controlServo(true);
       lastServoCycle = millis();
@@ -132,8 +137,9 @@ void iot_received(String topic, String msg) {
       nodeRedActive = false;
     }
   }
+    
   else if (topic == RELAY_TOPIC) {
-    if (msg == "1") {
+    if (msg == "1") {   //enough time has passed, give water
       relayManualControl = true;
       controlRelay(true);
       relayResetTime = millis();
@@ -144,6 +150,8 @@ void iot_received(String topic, String msg) {
       controlRelay(false);
     }
   }
+
+  //read food and water levels from MQTT
   else if (topic == FOOD_TOPIC || topic == WATER_TOPIC) {
     if (msg == "reset") {
       resetLevel(topic.c_str());
@@ -198,7 +206,7 @@ void loop() {
   iot.handle();
   unsigned long currentTime = millis();
 
-  // Handle automatic servo cycling (only when button is not pressed and Node-RED is not active)
+  //open and close servo when button is not pressed and there is no Node-RED signal to open servo
   if (!buttonActive && !nodeRedActive) {
     if (!isServoOpen && (currentTime - lastServoCycle >= SERVO_INTERVAL)) {
       controlServo(true);
@@ -209,20 +217,21 @@ void loop() {
     }
   }
   
-  // Handle Node-RED controlled servo timeout
+  //close servo after Node-RED signal timeout
   if (nodeRedActive && (currentTime - lastServoCycle >= 1000)) {
     controlServo(false);
     nodeRedActive = false;
   }
   
-  // Handle water relay
+  //close relay after relay reset delay
   if (relayPendingReset && currentTime - relayResetTime >= RELAY_RESET_DELAY) {
     controlRelay(false);
     relayPendingReset = false;
     iot.publishMsg(RELAY_TOPIC, "0");
     Serial.println("Manual Relay → OFF (auto reset)");
   }
-  
+
+  //open and close when water giving is pending
   if (!relayManualControl) {
     if (!isRelayOn && (currentTime - lastRelayCycle >= RELAY_INTERVAL)) {
       controlRelay(true);
